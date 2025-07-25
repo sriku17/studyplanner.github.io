@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Smart Study Planner</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #1e1e1e;
+      color: white;
+      margin: 0;
+      padding: 20px;
+    }
+    h2 {
+      color: #00e676;
+    }
+    label, input, select, textarea, button {
+      display: block;
+      width: 100%;
+      max-width: 500px;
+      margin-top: 10px;
+    }
+    input, select, textarea {
+      padding: 10px;
+      border: none;
+      border-radius: 5px;
+    }
+    button {
+      background-color: #00e676;
+      color: black;
+      padding: 10px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+      margin-top: 15px;
+    }
+    .output {
+      background-color: #333;
+      padding: 20px;
+      margin-top: 20px;
+      border-radius: 10px;
+    }
+    .chart-container {
+      margin-top: 30px;
+      max-width: 500px;
+    }
+    #timerDisplay {
+      font-size: 24px;
+      margin-top: 10px;
+      color: #00e676;
+    }
+  </style>
+</head>
+<body>
+  <h2>📚 Smart Study Planner (BTech CSE)</h2>
+
+  <label>👤 Name:</label>
+  <input type="text" id="name">
+
+  <label>📘 Course:</label>
+  <select id="course">
+    <option value="BTech CSE">BTech CSE</option>
+  </select>
+
+  <label>📘 Select Semester:</label>
+  <select id="semester">
+    <option value="1">Semester 1</option>
+    <option value="2">Semester 2</option>
+    <option value="3">Semester 3</option>
+    <option value="4">Semester 4</option>
+    <option value="5">Semester 5</option>
+    <option value="6">Semester 6</option>
+    <option value="7">Semester 7</option>
+    <option value="8">Semester 8</option>
+  </select>
+
+  <label>⏳ Daily Study Hours:</label>
+  <input type="number" id="hours" min="1" max="10">
+
+  <label>📅 Exam Date:</label>
+  <input type="date" id="examDate">
+
+  <button onclick="generatePlan()">📅 Generate Plan</button>
+  <button onclick="downloadPDF()">🖨 Export Plan to PDF</button>
+
+  <label>⏲ Select Study Timer Duration:</label>
+  <select id="timerSelect">
+    <option value="60">1 Hour</option>
+    <option value="120">2 Hours</option>
+    <option value="30">30 Minutes</option>
+  </select>
+  <button onclick="startTimer()">▶ Start Timer</button>
+  <div id="timerDisplay">⏳ Timer not started</div>
+
+  <div class="output" id="plan" style="display:none;"></div>
+
+  <div class="chart-container">
+    <canvas id="progressChart"></canvas>
+  </div>
+
+  <script>
+    const semesterSubjects = {
+      1: [
+        "Tech Foundation",
+        "Programming Principles and Practice with C and C++",
+        "Discrete Mathematics",
+        "Computer Organization and Architecture",
+        "Fundamentals of Business",
+        "English Communication - Foundation"
+      ],
+      2: [
+        "CS Fundamentals",
+        "Object Oriented Programming using Java",
+        "Data Structures and Algorithms (DSA-1)",
+        "Mathematics for Data Science",
+        "Database Management System (SQL, NoSQL)",
+        "English Communication - Advanced"
+      ],
+      3: [
+        "CS Advanced",
+        "Advance Data Structures and Algorithms (DSA-2)",
+        "Operating System",
+        "Python for Data Science",
+        "Data Visualization using Excel and PowerBI",
+        "Essential Language Skills"
+      ],
+      4: [
+        "Software Development",
+        "Fundamental of Machine Learning",
+        "Computer Networks",
+        "Formal Language and Automata Theory (FLAT)",
+        "Introduction to Contemporary Social Problems",
+        "Digital Presence & Strategic Networking"
+      ],
+      5: [
+        "Programming Languages & AI",
+        "Backend Development (NodeJS & ExpressJS)",
+        "Network Security",
+        "Introduction to Artificial Intelligence",
+        "Sustainable Waste Management",
+        "Business Communication"
+      ],
+      6: [
+        "Cloud Computing and DevOps",
+        "Fullstack Development (MERN)",
+        "Tech-Product Development",
+        "Employability Skills"
+      ],
+      7: [
+        "Skill Test & Career Coaching",
+        "Software Quality Assurance",
+        "Advance Backend Development (Golang)",
+        "Entrepreneurship Orientation",
+        "Professional Skills (Career Skills)"
+      ],
+      8: [
+        "Project/ Dissertation"
+      ]
+    };
+
+    function generatePlan() {
+      const name = document.getElementById('name').value;
+      const semester = parseInt(document.getElementById('semester').value);
+      const hours = parseFloat(document.getElementById('hours').value);
+      const examDate = new Date(document.getElementById('examDate').value);
+      const now = new Date();
+      const daysLeft = Math.ceil((examDate - now) / (1000 * 60 * 60 * 24));
+      const subjects = semesterSubjects[semester];
+
+      let html = `<h3>📅 Study Plan for <b>${name}</b> - Semester ${semester}</h3>`;
+      html += `<p>🗓 Days until exam: <b>${daysLeft}</b></p><ul>`;
+
+      const timePerSubj = hours / subjects.length;
+      subjects.forEach(sub => {
+        html += `<li>${timePerSubj.toFixed(1)} hrs - ${sub}</li>`;
+      });
+
+      html += '</ul>';
+
+      const planDiv = document.getElementById('plan');
+      planDiv.innerHTML = html;
+      planDiv.style.display = 'block';
+
+      drawChart(subjects.length);
+    }
+
+    function drawChart(completed) {
+      const ctx = document.getElementById('progressChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Planned Tasks', 'Remaining Capacity'],
+          datasets: [{
+            data: [completed, 10 - completed],
+            backgroundColor: ['#00e676', '#444']
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: {
+              labels: { color: 'white' }
+            }
+          }
+        }
+      });
+    }
+
+    function downloadPDF() {
+      const element = document.getElementById('plan');
+      if (!element.innerHTML.trim()) {
+        alert("Generate the plan first!");
+        return;
+      }
+      html2pdf().from(element).save("study-plan.pdf");
+    }
+
+    let timerInterval;
+    function startTimer() {
+      clearInterval(timerInterval);
+      const minutes = parseInt(document.getElementById("timerSelect").value);
+      let totalSeconds = minutes * 60;
+      const display = document.getElementById("timerDisplay");
+
+      function updateTimer() {
+        const hrs = Math.floor(totalSeconds / 3600);
+        const mins = Math.floor((totalSeconds % 3600) / 60);
+        const secs = totalSeconds % 60;
+        display.textContent = `⏳ Countdown: ${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+
+        if (totalSeconds <= 0) {
+          clearInterval(timerInterval);
+          alert("⏰ Time's up! Great job!");
+        } else {
+          totalSeconds--;
+        }
+      }
+
+      updateTimer();
+      timerInterval = setInterval(updateTimer, 1000);
+    }
+  </script>
+</body>
+</html>
